@@ -42,7 +42,7 @@ const registerUser = async (req, res) => {
 
         await user.save();
 
-        const confirmationUrl = `http://localhost:7654/api/v1/users/auth/confirm/${confirmationToken}`;
+        const confirmationUrl = `https://ecommerce-kpd4.onrender.com/api/v1/users/auth/confirm/${confirmationToken}`;
         const mailOptions = {
             from: process.env.EMAIL,
             to: user.email,
