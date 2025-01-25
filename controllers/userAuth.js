@@ -6,12 +6,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken'
 import Wishlist from '../models/wishListModel.js';
 import Cart from '../models/cartModel.js';
+import dotenv from 'dotenv'
+import cloudinary from 'cloudinary'
 
-
+dotenv.config()
 
 const registerUser = async (req, res) => {
     try {
-        const { error } = authSchema.validate(req.body);
+        const { error } = authSchema.validateAsync(req.body);
         if (error) {
             return res.status(400).json({ errors: error.details.map(detail => detail.message) });
         }
@@ -85,7 +87,7 @@ const confirmEmail = async (req, res) => {
 
         if (updatedUser.isConfirmed) {
             console.log('Email confirmed successfully');
-            return res.redirect('http://localhost:3000/products'); 
+            return res.redirect('https://www.agriorgacfarmltd.com/products'); 
         } else {
             console.error('Failed to update confirmation status');
             res.status(500).json({ error: 'Failed to confirm email' });
@@ -147,11 +149,125 @@ const logoutUser=(req, res) => {
       });
     });
   };
-  
 
+  const forgotPassword = async (req, res) => {
+    try {
+      const { email, newPassword } = req.body;
+      const verificationCode = Math.floor(1000 + Math.random() * 9000); // Random 4-digit number
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      const user = await Authentication.findOneAndUpdate(
+        { email },
+        {
+          $set: {
+            password: hashedPassword,
+            resetCode: verificationCode,
+            resetCodeExpires: Date.now() + 15 * 60 * 1000, 
+          },
+        },
+        { new: true } 
+      );
+  
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: user.email,
+        subject: 'Password Reset',
+        html: `   <p>Please confirm your password reset. Here is your verification code: <strong>${verificationCode}</strong></p>
+    <p>Paste the code in this link: <a href="https://agriorganic-fe.vercel.app/verify">https://agriorganic-fe.vercel.app/verify</a></p>`
+      };
+      await transporter.sendMail(mailOptions);
+  
+      res.status(200).json({ message: 'Password reset code sent successfully.' });
+    } catch (error) {
+      console.error('Error in forgotPassword:', error.message);
+      res.status(500).json({ error: 'Failed to send password reset code.' });
+    }
+  };
+// Get a product by ID
+export const getUserById = async (req, res) => {
+  try {
+    const user = await Authentication.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+export const updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!userId) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    const updatedData = { ...req.body };
+
+    // Upload new image to Cloudinary if provided
+    if (req.file && req.file.buffer) {
+      const uploadToCloudinary = (buffer) => {
+        return new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.v2.uploader.upload_stream(
+            { folder: "products" },
+            (error, result) => {
+              if (error) {
+                return reject(error);
+              }
+              resolve(result.secure_url);
+            }
+          );
+          uploadStream.end(buffer); // Stream the buffer to Cloudinary
+        });
+      };
+
+      try {
+        const pictureUrl = await uploadToCloudinary(req.file.buffer);
+        updatedData.profile = pictureUrl; // Update the Cloudinary URL
+      } catch (error) {
+        console.error("Cloudinary upload error:", error.message);
+        return res.status(500).json({ error: "Image upload failed" });
+      }
+    }
+
+    // Update the product in the database
+    const user = await Authentication.findByIdAndUpdate(userId, updatedData, {
+      new: true, // Return the updated document
+      runValidators: true, // Run validation on the update
+    });
+
+    if (!user){
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.status(200).json({
+      message: "Product updated successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("Error updating product:", error.message);
+    res.status(500).json({ error: "An error occurred while updating the product" });
+  }
+};
+
+
+
+  
 export default  {
     registerUser,
     confirmEmail,
     loginUser,
-    logoutUser
+    logoutUser,
+    forgotPassword,
+    updateUser,
+    getUserById,
+
 };

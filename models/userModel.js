@@ -8,7 +8,12 @@ const authInfoSchema = new mongoose.Schema({
     isConfirmed: { type: Boolean, default: false },
     confirmationToken: { type: String, default: '' },
     googleId: { type: String, unique: true, sparse: true },
-    role:{type:String, default:"client"}
+    role:{type:String, default:"client"},
+    resetCode:{type:String},
+    country:{type:String,default:"Rwanda"},
+    city:{type:String,default:"Kigali"},
+    street:{type:String,default:"KG 655 st"},
+    profile:{type:String}
     
 });
 

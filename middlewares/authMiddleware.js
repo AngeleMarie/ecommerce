@@ -27,19 +27,19 @@ const authenticateToken = async (req, res, next) => {
         }
 
         req.user = user; 
-        if (user.status === 'admin') {
+        if (user.role === 'admin') {
 
             return next(); 
         }
 
-        if (user.status === 'client') {
+        if (user.role === 'client') {
 
             if (req.path === '/wishlist/:id') {
                 return next(); 
             }
 
         
-            if (req.path === '/dashboard' || req.method === 'DELETE' || req.method === 'PUT') {
+            if (req.path === '/stock' || req.method === 'DELETE' || req.method === 'PUT') {
                 return res.status(403).json({ error: 'Access denied: Clients cannot perform this action' });
             }
         }

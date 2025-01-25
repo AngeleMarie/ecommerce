@@ -1,41 +1,35 @@
-import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const router = express.Router();
+// Get directory name
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Setup multer storage configuration
+// Local storage for incoming files
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Specify the upload folder
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../uploads')); // Save files in "uploads" folder
   },
-  filename: function (req, file, cb) {
-    // Use the current timestamp and original file name to ensure uniqueness
-    cb(null, Date.now() + '-' + file.originalname);
-  }
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`); // Unique filename
+  },
 });
 
-// Validate file type (only allow images: PNG, JPG, JPEG)
-const fileFilter = (req, file, cb) => {
-  const allowedFileTypes = /jpeg|jpg|png/;
-  const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedFileTypes.test(file.mimetype);
-
-  if (extname && mimetype) {
-    cb(null, true); // Accept the file
-  } else {
-    cb(new Error('Invalid file type, only JPEG, PNG, or JPG are allowed'), false); // Reject the file
-  }
-};
-
-// Limit file size to 5MB
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      const error = new Error('Unsupported file type');
+      error.statusCode = 400;
+      return cb(error, false);
+    }
+    cb(null, true);
+  },
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  }
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
 });
 
-// Export the upload middleware
 export default upload;

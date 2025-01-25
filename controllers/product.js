@@ -1,95 +1,158 @@
+// controllers/product.js
 import Product from '../models/productModel.js';
+// import cloudinary from '../config/cloudinaryConfig.js';
+import fs from 'fs'
+import cloudinary from "cloudinary"
+import { log } from 'console';
 
 export const addProduct = async (req, res) => {
   try {
-    const { name, price, quantity, description, usageGuide } = req.body;
-    const picture = req.file ? req.file.path : null;  // Set picture to file path if uploaded
+    const { name,type, quantity, description, usageGuide } = req.body;
+    let pictureUrl='';
 
-    // Create a new product instance
+    const uploadToCloudinary = (buffer) => {
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.v2.uploader.upload_stream(
+          { folder: "products" },
+          (error, result) => {
+            if (error) {
+              return reject(error);
+            }
+            resolve(result.secure_url);
+          }
+        );
+        uploadStream.end(buffer);
+      });
+    };
+
+    if (req.file && req.file.buffer) {
+      try {
+        pictureUrl = await uploadToCloudinary(req.file.buffer);
+        console.log("Uploaded Image URL: ", pictureUrl);
+      } catch (error) {
+        console.log("Cloudinary upload error:", error.message);
+        return res.status(500).json({ error: "Image upload failed" });        
+      }
+    }
+    
+
     const product = new Product({
       name,
-      price,
+      type,
       quantity,
       description,
       usageGuide,
-      picture, 
+      picture: pictureUrl,
     });
 
-    await product.save(); // Save the product to the database
-    res.status(201).json(product);  // Send the product as a response
+    await product.save();
+    console.log(product);
+    
+    res.status(201).json(product);
   } catch (error) {
-    console.error("Database save error:", error.message);
-    res.status(500).json({ error: "An error occurred while saving the product. Please try again." });
+    console.error("Error adding product:", error.message);
+    res.status(500).json({ error: "An unexpected error occurred" });
   }
-};
-      
+}
+
+// Get all products
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find();
 
-    // Map over products to convert binary `picture` to base64 for each product
-    const productsWithImages = products.map(product => {
-      const base64Image = product.picture ? product.picture.toString('base64') : null;
-      return {
-        ...product._doc, // Spreads the rest of the product properties
-        picture: base64Image ? `data:image/png;base64,${base64Image}` : null,
-      };
-    });
+    if (products.length === 0) {
+      return res.status(404).json({ message: "No products found" });
+    }
 
-    res.json(productsWithImages);
+    res.json(products);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-
+// Get a product by ID
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
     res.json(product);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Update a product with optional image upload
 export const updateProduct = async (req, res) => {
   try {
-    const productId = req.params.id; // Get the ID from the request
-    console.log('Product ID:', productId); // Log the product ID to debug
+    const productId = req.params.id;
 
-    // Check if the productId is defined
     if (!productId) {
-      return res.status(400).json({ error: 'Product ID is required' });
+      return res.status(400).json({ error: "Product ID is required" });
     }
 
-    const product = await Product.findByIdAndUpdate(
-      productId,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const updatedData = { ...req.body };
+
+    // Upload new image to Cloudinary if provided
+    if (req.file && req.file.buffer) {
+      const uploadToCloudinary = (buffer) => {
+        return new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.v2.uploader.upload_stream(
+            { folder: "products" },
+            (error, result) => {
+              if (error) {
+                return reject(error);
+              }
+              resolve(result.secure_url);
+            }
+          );
+          uploadStream.end(buffer); // Stream the buffer to Cloudinary
+        });
+      };
+
+      try {
+        const pictureUrl = await uploadToCloudinary(req.file.buffer);
+        updatedData.picture = pictureUrl; // Update the Cloudinary URL
+      } catch (error) {
+        console.error("Cloudinary upload error:", error.message);
+        return res.status(500).json({ error: "Image upload failed" });
+      }
+    }
+
+    // Update the product in the database
+    const product = await Product.findByIdAndUpdate(productId, updatedData, {
+      new: true, // Return the updated document
+      runValidators: true, // Run validation on the update
+    });
 
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
 
     res.status(200).json({
-      message: 'Product updated successfully',
+      message: "Product updated successfully",
       product,
     });
   } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(400).json({
-      error: error.message || 'An error occurred while updating the product',
-    });
+    console.error("Error updating product:", error.message);
+    res.status(500).json({ error: "An error occurred while updating the product" });
   }
 };
 
 
+// Delete a product
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json({ message: 'Product deleted successfully' });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.json({ message: "Product deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
