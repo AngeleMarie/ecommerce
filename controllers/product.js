@@ -1,9 +1,7 @@
 // controllers/product.js
 import Product from '../models/productModel.js';
-// import cloudinary from '../config/cloudinaryConfig.js';
-import fs from 'fs'
 import cloudinary from "cloudinary"
-import { log } from 'console';
+
 
 export const addProduct = async (req, res) => {
   try {
@@ -35,7 +33,6 @@ export const addProduct = async (req, res) => {
       }
     }
     
-
     const product = new Product({
       name,
       type,
@@ -124,8 +121,8 @@ export const updateProduct = async (req, res) => {
 
     // Update the product in the database
     const product = await Product.findByIdAndUpdate(productId, updatedData, {
-      new: true, // Return the updated document
-      runValidators: true, // Run validation on the update
+      new: true, 
+      runValidators: true, 
     });
 
     if (!product) {

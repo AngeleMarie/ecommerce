@@ -48,21 +48,39 @@ app.use(
   })
 );
 
-// Enable CORS
-const allowedOrigins = ['http://localhost:3000', 'https://agriorganic-fe.vercel.app', 'https://www.agriorgacfarmltd.com'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://agriorganic-fe.vercel.app',
+  'https://www.agriorgacfarmltd.com'
+];
 
+// CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Check if the incoming origin is in the allowedOrigins array or if no origin (e.g., for same-origin requests)
-    if (allowedOrigins.includes(origin) || !origin) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or Postman)
       callback(null, true);
     } else {
+      // Deny requests from unauthorized origins
       callback(new Error('Not allowed by CORS'));
     }
   },
-  optionsSuccessStatus: 200, // For legacy browser support
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
+  credentials: true, // Enable sending cookies and credentials
+  optionsSuccessStatus: 200 // For legacy browser support
 };
-app.use(cors(corsOptions))
+
+// Enable CORS
+app.use(cors(corsOptions));
+
+// Error handling for CORS
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ error: 'CORS policy does not allow access from this origin.' });
+  }
+  next(err);
+});
+
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
