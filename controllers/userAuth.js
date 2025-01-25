@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import Authentication from '../models/userModel.js'; 
 import authSchema from '../validators/authValidator.js'; 
 import transporter from"../config/emailConfig.js"
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'
 import Wishlist from '../models/wishListModel.js';
 import Cart from '../models/cartModel.js';
