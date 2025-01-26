@@ -17,7 +17,7 @@ const registerUser = async (req, res) => {
         if (error) {
             return res.status(400).json({ errors: error.details.map(detail => detail.message) });
         }
-        const { fullName, email, phone, password } = req.body;
+        const { fullName, email, phone, password,role } = req.body;
         let user = await Authentication.findOne({ email });
         if (user) {
             return res.status(400).json({ error: 'User already exists' });
@@ -31,7 +31,7 @@ const registerUser = async (req, res) => {
             phone,
             password: hashedPassword,
             confirmationToken,
-            status: "client",
+            role,
             isConfirmed: false 
         });
         const wishlist = new Wishlist({ userId: user._id, items: [] });
